@@ -69,7 +69,6 @@ const Interview = () => {
         { answer: userMessage.text }
       );
 
-      // Final JSON report
       if (res.data.message.includes('"status": "completed"')) {
         const jsonMatch = res.data.message.match(/\{.*\}/s);
         if (jsonMatch) {
@@ -80,7 +79,6 @@ const Interview = () => {
         }
       }
 
-      // Normal interviewer message
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         text: res.data.message,
@@ -103,10 +101,8 @@ const Interview = () => {
     }
   };
 
-  // Function to render text with # headings and **bold**
   const renderMessageText = (text: string) => {
     return text.split("\n").map((line, index) => {
-      // Heading
       if (line.startsWith("#")) {
         return (
           <h3 key={index} className="text-lg font-bold mb-1">
@@ -114,8 +110,6 @@ const Interview = () => {
           </h3>
         );
       }
-
-      // Bold inside **
       const parts = line.split(/(\*\*.*?\*\*)/g);
       return (
         <p key={index} className="text-sm whitespace-pre-line mb-1">
@@ -131,24 +125,46 @@ const Interview = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="h-screen w-screen bg-gray-50 flex flex-col">
+      {!started ? (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 1 }}
+          className="flex flex-col items-center justify-center flex-1 p-8 text-center"
+        >
+          <motion.h1
+            initial={{ y: -30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-3xl md:text-4xl font-bold text-gray-800 mb-4"
+          >
+            👋 Hey there, I’m <span className="text-green-600">Excellerate</span>
+          </motion.h1>
+          <motion.p
+            initial={{ y: 30, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="text-lg text-gray-600 max-w-xl mb-8"
+          >
+            I’ll be your **AI Interviewer** today. Ready to test your skills and see how you perform? 🚀
+          </motion.p>
+          <motion.button
+            onClick={startInterview}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg hover:bg-green-700 transition"
+          >
+            Start Interview
+          </motion.button>
+        </motion.div>
+      ) : (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-white rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-100px)]"
+          className="flex flex-col flex-1"
         >
-          {/* Header */}
-          <div className="bg-green-600 px-6 py-4">
-            <h1 className="text-2xl font-bold text-white">
-              Excel Interview Session
-            </h1>
-            <p className="text-green-100 mt-1">
-              AI interviewer
-            </p>
-          </div>
-
           {/* Chat Section */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.map((message) => (
@@ -158,9 +174,7 @@ const Interview = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
                 className={`flex ${
-                  message.sender === "candidate"
-                    ? "justify-end"
-                    : "justify-start"
+                  message.sender === "candidate" ? "justify-end" : "justify-start"
                 }`}
               >
                 <div
@@ -170,7 +184,6 @@ const Interview = () => {
                       : "flex-row space-x-4"
                   }`}
                 >
-                  {/* Icon */}
                   <div
                     className={`p-2 rounded-full ${
                       message.sender === "interviewer"
@@ -185,7 +198,6 @@ const Interview = () => {
                     )}
                   </div>
 
-                  {/* Message Box with text + image side by side */}
                   <div
                     className={`px-4 py-2 rounded-2xl flex items-start space-x-4 ${
                       message.sender === "candidate"
@@ -193,18 +205,15 @@ const Interview = () => {
                         : "bg-gray-100 text-gray-900"
                     }`}
                   >
-                    {/* Text */}
                     <div className="flex-1 min-w-0">
                       {renderMessageText(message.text)}
                     </div>
-
-                    {/* Image */}
                     {message.image_url && (
                       <div className="flex-1">
                         <img
                           src={`http://127.0.0.1:8000${message.image_url}`}
                           alt="Interview visual"
-                          className="w-full max-h-60 object-contain rounded-lg border border-gray-300"
+                          className="max-w-[110%] md:max-w-[800px] max-h-[500px] w-auto h-auto object-contain rounded-lg border border-gray-300"
                         />
                       </div>
                     )}
@@ -240,37 +249,26 @@ const Interview = () => {
 
           {/* Input Area */}
           <div className="p-4 border-t border-gray-200 flex space-x-2">
-            {!started ? (
-              <button
-                onClick={startInterview}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
-              >
-                Start Interview
-              </button>
-            ) : (
-              <>
-                <input
-                  type="text"
-                  value={currentAnswer}
-                  onChange={(e) => setCurrentAnswer(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Type your response..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={validateAnswer}
-                  disabled={isLoading || !currentAnswer.trim()}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  <CheckCircle className="w-4 h-4 inline mr-2" />
-                  Validate Answer
-                </button>
-              </>
-            )}
+            <input
+              type="text"
+              value={currentAnswer}
+              onChange={(e) => setCurrentAnswer(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type your response..."
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              disabled={isLoading}
+            />
+            <button
+              onClick={validateAnswer}
+              disabled={isLoading || !currentAnswer.trim()}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              <CheckCircle className="w-4 h-4 inline mr-2" />
+              Validate Answer
+            </button>
           </div>
         </motion.div>
-      </div>
+      )}
     </div>
   );
 };

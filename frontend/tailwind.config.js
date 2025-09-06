@@ -4,8 +4,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // ✅ Make Poppins the default sans font
-        sans: ['Poppins', 'sans-serif'],
+        // ✅ Make Helvetica the default sans font
+        sans: ['Helvetica', 'Arial', 'sans-serif'],
       },
     },
   },
