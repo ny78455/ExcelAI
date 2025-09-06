@@ -1,2 +1,9 @@
 flask
 flask-cors
+matplotlib
+pandas
+numpy
+gunicorn
+python-dotenv
+requests
+google-generativeai
