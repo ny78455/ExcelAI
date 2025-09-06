@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import axios from "axios";
 import { Send, Bot, User, CheckCircle } from "lucide-react";
+import * as faceapi from "face-api.js";
 
 interface Message {
   id: string;
@@ -11,12 +12,19 @@ interface Message {
   image_url?: string; // optional image
 }
 
+const MODEL_URL = "/models/face-api.js-models";
+
 const Interview = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [started, setStarted] = useState(false);
   const [currentAnswer, setCurrentAnswer] = useState("");
+  const [multipleFaces, setMultipleFaces] = useState(false);
+  const [referenceDescriptor, setReferenceDescriptor] =
+    useState<Float32Array | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -26,10 +34,123 @@ const Interview = () => {
     scrollToBottom();
   }, [messages]);
 
+  // Setup webcam + load models when interview starts
+  useEffect(() => {
+    if (started) {
+      const setupCameraAndModels = async () => {
+        try {
+          // Load models
+          await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri(
+              MODEL_URL + "/tiny_face_detector"
+            ),
+            faceapi.nets.faceLandmark68Net.loadFromUri(
+              MODEL_URL + "/face_landmark_68"
+            ),
+            faceapi.nets.faceRecognitionNet.loadFromUri(
+              MODEL_URL + "/face_recognition"
+            ),
+            faceapi.nets.faceExpressionNet.loadFromUri(
+              MODEL_URL + "/face_expression"
+            ),
+          ]);
+          console.log("✅ Face-api models loaded");
+
+          // Start webcam
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+          }
+        } catch (err) {
+          console.error("❌ Error loading models or accessing webcam:", err);
+        }
+      };
+
+      setupCameraAndModels();
+    }
+  }, [started]);
+
+  // Face detection loop
+  useEffect(() => {
+    let interval: NodeJS.Timer;
+
+    if (started) {
+      interval = setInterval(async () => {
+        if (videoRef.current) {
+          try {
+            const detections = await faceapi
+              .detectAllFaces(
+                videoRef.current,
+                new faceapi.TinyFaceDetectorOptions()
+              )
+              .withFaceLandmarks()
+              .withFaceDescriptors();
+
+            console.log("Detected faces:", detections.length);
+
+            // Case 1: Multiple faces detected
+            if (detections.length > 1 && !multipleFaces) {
+              setMultipleFaces(true);
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: Date.now().toString(),
+                  text: "⚠️ Warning: More than one person detected in the frame.",
+                  sender: "interviewer",
+                  timestamp: new Date(),
+                },
+              ]);
+            } else if (detections.length <= 1 && multipleFaces) {
+              setMultipleFaces(false);
+            }
+
+            // Case 2: Detect person change
+            if (detections.length === 1) {
+              const currentDescriptor = detections[0].descriptor;
+
+              if (!referenceDescriptor) {
+                // Save first person as reference
+                setReferenceDescriptor(currentDescriptor);
+                console.log("✅ Stored reference face");
+              } else {
+                // Compare with stored reference
+                const distance = faceapi.euclideanDistance(
+                  Array.from(referenceDescriptor),
+                  Array.from(currentDescriptor)
+                );
+
+                console.log("Face distance:", distance);
+
+                if (distance > 0.6) {
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      id: Date.now().toString(),
+                      text: "⚠️ Warning: A different person appears in the frame!",
+                      sender: "interviewer",
+                      timestamp: new Date(),
+                    },
+                  ]);
+                }
+              }
+            }
+          } catch (err) {
+            console.error("❌ Face detection error:", err);
+          }
+        }
+      }, 2000); // run every 2 sec
+    }
+
+    return () => clearInterval(interval);
+  }, [started, multipleFaces, referenceDescriptor]);
+
   const startInterview = async () => {
+    setStarted(true);
     setIsLoading(true);
+
     try {
       const res = await axios.post("http://127.0.0.1:8000/api/interview/start");
+
       setMessages([
         {
           id: Date.now().toString(),
@@ -39,9 +160,16 @@ const Interview = () => {
           image_url: res.data.image_url,
         },
       ]);
-      setStarted(true);
     } catch (err) {
       console.error("Error starting interview", err);
+      setMessages([
+        {
+          id: Date.now().toString(),
+          text: "⚠️ Sorry, I couldn’t start the interview. Please try again.",
+          sender: "interviewer",
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -147,7 +275,8 @@ const Interview = () => {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="text-lg text-gray-600 max-w-xl mb-8"
           >
-            I’ll be your **AI Interviewer** today. Ready to test your skills and see how you perform? 🚀
+            I’ll be your <strong>AI Interviewer</strong> today. Ready to test your
+            skills and see how you perform? 🚀
           </motion.p>
           <motion.button
             onClick={startInterview}
@@ -163,7 +292,7 @@ const Interview = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="flex flex-col flex-1"
+          className="flex flex-col flex-1 relative"
         >
           {/* Chat Section */}
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -174,7 +303,9 @@ const Interview = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
                 className={`flex ${
-                  message.sender === "candidate" ? "justify-end" : "justify-start"
+                  message.sender === "candidate"
+                    ? "justify-end"
+                    : "justify-start"
                 }`}
               >
                 <div
@@ -267,6 +398,21 @@ const Interview = () => {
               Validate Answer
             </button>
           </div>
+
+          {/* Movable Webcam Preview */}
+          <motion.div
+            drag
+            dragConstraints={{ left: 0, right: 300, top: 0, bottom: 500 }}
+            className="absolute bottom-20 right-4 w-40 h-32 bg-black rounded-lg overflow-hidden shadow-lg cursor-move"
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
         </motion.div>
       )}
     </div>
