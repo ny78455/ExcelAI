@@ -27,7 +27,7 @@ const Navbar = () => {
               <FileSpreadsheet className="w-6 h-6 text-white" />
             </div>
             <span className="text-2xl font-bold text-gray-900">
-              Excel.AI
+              Excellerate
             </span>
           </Link>
 

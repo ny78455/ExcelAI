@@ -36,6 +36,7 @@ const Interview = () => {
           text: res.data.message,
           sender: "interviewer",
           timestamp: new Date(),
+          image_url: res.data.image_url,
         },
       ]);
       setStarted(true);
@@ -68,7 +69,7 @@ const Interview = () => {
         { answer: userMessage.text }
       );
 
-      // Final JSON report?
+      // Final JSON report
       if (res.data.message.includes('"status": "completed"')) {
         const jsonMatch = res.data.message.match(/\{.*\}/s);
         if (jsonMatch) {
@@ -85,6 +86,7 @@ const Interview = () => {
         text: res.data.message,
         sender: "interviewer",
         timestamp: new Date(),
+        image_url: res.data.image_url,
       };
       setMessages((prev) => [...prev, aiResponse]);
     } catch (err) {
@@ -99,6 +101,33 @@ const Interview = () => {
       e.preventDefault();
       validateAnswer();
     }
+  };
+
+  // Function to render text with # headings and **bold**
+  const renderMessageText = (text: string) => {
+    return text.split("\n").map((line, index) => {
+      // Heading
+      if (line.startsWith("#")) {
+        return (
+          <h3 key={index} className="text-lg font-bold mb-1">
+            {line.replace(/^#+\s*/, "")}
+          </h3>
+        );
+      }
+
+      // Bold inside **
+      const parts = line.split(/(\*\*.*?\*\*)/g);
+      return (
+        <p key={index} className="text-sm whitespace-pre-line mb-1">
+          {parts.map((part, i) => {
+            if (part.startsWith("**") && part.endsWith("**")) {
+              return <strong key={i}>{part.slice(2, -2)}</strong>;
+            }
+            return part;
+          })}
+        </p>
+      );
+    });
   };
 
   return (
@@ -116,7 +145,7 @@ const Interview = () => {
               Excel Interview Session
             </h1>
             <p className="text-green-100 mt-1">
-              Practice with our AI interviewer (Gemini)
+              AI interviewer
             </p>
           </div>
 
@@ -135,12 +164,13 @@ const Interview = () => {
                 }`}
               >
                 <div
-                  className={`flex items-start space-x-2 max-w-xs lg:max-w-md ${
+                  className={`flex items-start max-w-full ${
                     message.sender === "candidate"
                       ? "flex-row-reverse space-x-reverse"
-                      : ""
+                      : "flex-row space-x-4"
                   }`}
                 >
+                  {/* Icon */}
                   <div
                     className={`p-2 rounded-full ${
                       message.sender === "interviewer"
@@ -154,25 +184,35 @@ const Interview = () => {
                       <User className="w-4 h-4" />
                     )}
                   </div>
+
+                  {/* Message Box with text + image side by side */}
                   <div
-                    className={`px-4 py-2 rounded-2xl ${
+                    className={`px-4 py-2 rounded-2xl flex items-start space-x-4 ${
                       message.sender === "candidate"
-                        ? "bg-blue-600 text-white"
+                        ? "bg-blue-600 text-white flex-row-reverse space-x-reverse"
                         : "bg-gray-100 text-gray-900"
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-line">{message.text}</p>
+                    {/* Text */}
+                    <div className="flex-1 min-w-0">
+                      {renderMessageText(message.text)}
+                    </div>
+
+                    {/* Image */}
                     {message.image_url && (
-                      <img
-                        src={message.image_url}
-                        alt="Interview visual"
-                        className="mt-2 rounded-lg border border-gray-300"
-                      />
+                      <div className="flex-1">
+                        <img
+                          src={`http://127.0.0.1:8000${message.image_url}`}
+                          alt="Interview visual"
+                          className="w-full max-h-60 object-contain rounded-lg border border-gray-300"
+                        />
+                      </div>
                     )}
                   </div>
                 </div>
               </motion.div>
             ))}
+
             {isLoading && (
               <div className="flex justify-start">
                 <div className="flex items-center space-x-2">
