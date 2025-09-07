@@ -1,3 +1,7 @@
+#Links
+**Demo Video** - https://drive.google.com/file/d/1aMuz6NtmMOPEyrgSTVO448jrl_PFr-7v/view?usp=sharing
+**Demo App** - https://excellerate.netlify.app
+**Backend Deploy** - https://excelai.onrender.com
 
 # 📊 AI Excel Interviewer Platform
 
